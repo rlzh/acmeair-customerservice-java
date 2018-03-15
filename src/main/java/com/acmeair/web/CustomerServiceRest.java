@@ -16,6 +16,11 @@
 
 package com.acmeair.web;
 
+import com.acmeair.securityutils.SecurityUtils;
+import com.acmeair.service.CustomerService;
+import com.acmeair.web.dto.AddressInfo;
+import com.acmeair.web.dto.CustomerInfo;
+
 import java.io.StringReader;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -24,6 +29,7 @@ import javax.inject.Inject;
 import javax.json.Json;
 import javax.json.JsonBuilderFactory;
 import javax.json.JsonObject;
+import javax.json.JsonObjectBuilder;
 import javax.json.JsonReader;
 import javax.json.JsonReaderFactory;
 import javax.ws.rs.Consumes;
@@ -37,13 +43,6 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Response;
 
-import com.acmeair.securityutils.SecurityUtils;
-import com.acmeair.service.CustomerService;
-import com.acmeair.web.dto.AddressInfo;
-import com.acmeair.web.dto.CustomerInfo;
-
-import org.eclipse.microprofile.metrics.annotation.Timed;
-
 @Path("/")
 public class CustomerServiceRest {
 
@@ -54,17 +53,29 @@ public class CustomerServiceRest {
   private SecurityUtils secUtils;
 
   private static final Logger logger = Logger.getLogger(CustomerServiceRest.class.getName());
-    
+
   private static final JsonReaderFactory rfactory = Json.createReaderFactory(null);
   private static final JsonBuilderFactory bFactory = Json.createBuilderFactory(null);
-    
+
+  private static final Boolean SECURE_USER_CALLS = Boolean
+      .valueOf((System.getenv("SECURE_USER_CALLS") == null) ? "true" 
+          : System.getenv("SECURE_USER_CALLS"));
+  
+  private static final Boolean SECURE_SERVICE_CALLS = Boolean
+      .valueOf((System.getenv("SECURE_SERVICE_CALLS") == null) ? "false" 
+          : System.getenv("SECURE_SERVICE_CALLS"));
+
+  static {
+    System.out.println("SECURE_USER_CALLS: " + SECURE_USER_CALLS);
+    System.out.println("SECURE_SERVICE_CALLS: " + SECURE_SERVICE_CALLS);
+  }
+
   /**
    * Get customer info.
    */
   @GET
   @Path("/byid/{custid}")
   @Produces("text/plain")
-  @Timed(name="com.acmeair.web.CustomerServiceRest.getCustomer", tags = "app=customerservice-java")
   public Response getCustomer(@PathParam("custid") String customerid, 
       @CookieParam("jwt_token") String jwtToken) {
     if (logger.isLoggable(Level.FINE)) {
@@ -74,7 +85,7 @@ public class CustomerServiceRest {
     try {
       // make sure the user isn't trying to update a customer other than the one
       // currently logged in
-      if (secUtils.secureUserCalls() && !secUtils.validateJwt(customerid, jwtToken)) {
+      if (SECURE_USER_CALLS && !secUtils.validateJwt(customerid, jwtToken)) {
         return Response.status(Response.Status.FORBIDDEN).build();
       }
 
@@ -92,12 +103,11 @@ public class CustomerServiceRest {
   @POST
   @Path("/byid/{custid}")
   @Produces("text/plain")
-  @Timed(name="com.acmeair.web.CustomerServiceRest.putCustomer", tags = "app=customerservice-java")
   public Response putCustomer(CustomerInfo customer, @CookieParam("jwt_token") String jwtToken) {
 
     String username = customer.get_id();       
     
-    if (secUtils.secureUserCalls() && !secUtils.validateJwt(username, jwtToken)) {
+    if (SECURE_USER_CALLS && !secUtils.validateJwt(username, jwtToken)) {
       return Response.status(Response.Status.FORBIDDEN).build();
     }
 
@@ -129,8 +139,7 @@ public class CustomerServiceRest {
   @Path("/validateid")
   @Consumes({ "application/x-www-form-urlencoded" })
   @Produces("application/json")
-  @Timed(name="com.acmeair.web.CustomerServiceRest.validateCustomer", tags = "app=customerservice-java")
-  public LoginResponse validateCustomer(@HeaderParam("acmeair-id") String headerId,
+  public Response validateCustomer(@HeaderParam("acmeair-id") String headerId,
       @HeaderParam("acmeair-date") String headerDate, 
       @HeaderParam("acmeair-sig-body") String headerSigBody,
       @HeaderParam("acmeair-signature") String headerSig, @FormParam("login") String login,
@@ -141,20 +150,19 @@ public class CustomerServiceRest {
     }
 
     // verify header
-    if (secUtils.secureServiceCalls()) {
+    if (SECURE_SERVICE_CALLS) {
       String body = "login=" + login + "&password=" + password;
       secUtils.verifyBodyHash(body, headerSigBody);
       secUtils.verifyFullSignature("POST", "/validateid", headerId, headerDate, 
           headerSigBody, headerSig);
     }
 
-    if (!customerService.isPopulated()) {
-      throw new RuntimeException("Customer DB has not been populated");
-    }
-    
     Boolean validCustomer = customerService.validateCustomer(login, password);
-            
-    return new LoginResponse(validCustomer); 
+
+    JsonObjectBuilder job = bFactory.createObjectBuilder();
+    JsonObject value = job.add("validCustomer", validCustomer).build();
+
+    return Response.ok(value.toString()).build();
   }
 
   /**
@@ -164,16 +172,15 @@ public class CustomerServiceRest {
   @Path("/updateCustomerTotalMiles/{custid}")
   @Consumes({ "application/x-www-form-urlencoded" })
   @Produces("application/json")
-  @Timed(name="com.acmeair.web.CustomerServiceRest.updateCustomerTotalMiles", tags = "app=customerservice-java")
-  public MilesResponse updateCustomerTotalMiles(@HeaderParam("acmeair-id") String headerId,
+  public Response updateCustomerTotalMiles(@HeaderParam("acmeair-id") String headerId,
       @HeaderParam("acmeair-date") String headerDate, 
       @HeaderParam("acmeair-sig-body") String headerSigBody,
       @HeaderParam("acmeair-signature") String headerSig, 
       @PathParam("custid") String customerid,
       @FormParam("miles") Long miles) {
 
-    
-      if (secUtils.secureServiceCalls()) {
+    try {
+      if (SECURE_SERVICE_CALLS) {
         String body = "miles=" + miles;
         secUtils.verifyBodyHash(body, headerSigBody);
         secUtils.verifyFullSignature("POST", "/updateCustomerTotalMiles", 
@@ -214,9 +221,17 @@ public class CustomerServiceRest {
           customerJson.getString("phoneNumberType"));
 
       customerService.updateCustomer(customerid, customerInfo);
+            
+      JsonObjectBuilder job = bFactory.createObjectBuilder();
+      JsonObject value = job.add("total_miles", milesUpdate).build();
 
-      return new MilesResponse(milesUpdate);
+      return Response.ok(value.toString()).build();
 
+    } catch (Exception e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+      return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+    }
   }
 
   @GET

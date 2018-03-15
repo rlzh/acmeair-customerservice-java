@@ -28,23 +28,16 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 
 import javax.annotation.PostConstruct;
-import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Inject;
 
 import org.bson.Document;
 
-@ApplicationScoped
 public class CustomerServiceImpl extends CustomerService implements MongoConstants {
 
   private MongoCollection<Document> customer;
-  private Boolean isPopulated = false;
-    
-  @Inject
-  ConnectionManager connectionManager;
 
   @PostConstruct
   public void initialization() {
-    MongoDatabase database = connectionManager.getDb();
+    MongoDatabase database = ConnectionManager.getConnectionManager().getDb();
     customer = database.getCollection("customer");
   }
 
@@ -132,17 +125,4 @@ public class CustomerServiceImpl extends CustomerService implements MongoConstan
     return "mongo";
   }
 
-  @Override
-  public boolean isPopulated() {
-    if (isPopulated) {
-      return true;
-    }
-        
-    if (customer.count() > 0) {
-      isPopulated = true;
-      return true;
-    } else {
-      return false;
-    }
-  }
 }

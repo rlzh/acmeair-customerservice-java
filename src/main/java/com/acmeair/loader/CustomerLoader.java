@@ -18,23 +18,19 @@ package com.acmeair.loader;
 
 import com.acmeair.service.CustomerService;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Properties;
 import java.util.logging.Logger;
 
-import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
-import org.eclipse.microprofile.config.inject.ConfigProperty;
-
-@ApplicationScoped
 public class CustomerLoader {
 
   @Inject
   CustomerService customerService;
-  
-  @Inject 
-  @ConfigProperty(name = "NUM_CUSTOMERS_TO_LOAD", defaultValue = "10000") 
-  private Integer numCustomersToLoad;
-  
+    
   private static Logger logger = Logger.getLogger(CustomerLoader.class.getName());
 
   /**
@@ -42,8 +38,14 @@ public class CustomerLoader {
    */
   
   public String queryLoader() {
-    
-    return numCustomersToLoad.toString();
+    String message = System.getProperty("loader.numCustomers");
+    if (message == null) {
+      logger.info("The system property 'loader.numCustomers' has not been set yet. "
+          + "Looking up the default properties.");
+      lookupDefaults();
+      message = System.getProperty("loader.numCustomers");
+    }
+    return message;
   }
 
   /**
@@ -74,5 +76,33 @@ public class CustomerLoader {
     }
     
     return "Loaded "  +  numCustomers + " customers in " + length + " seconds";
-  } 
+  }
+
+
+  private void lookupDefaults() {
+    Properties props = getProperties();
+
+    String numCustomers = props.getProperty("loader.numCustomers","100");
+    System.setProperty("loader.numCustomers", numCustomers);
+  }
+
+  private Properties getProperties() {
+    /*
+     * Get Properties from loader.properties file. 
+     * If the file does not exist, use default values
+     */
+    Properties props = new Properties();
+    String propFileName = "/loader.properties";
+    try {
+      InputStream propFileStream = CustomerLoader.class.getResourceAsStream(propFileName);
+      props.load(propFileStream);
+      // props.load(new FileInputStream(propFileName));
+    } catch (FileNotFoundException e) {
+      logger.info("Property file " + propFileName + " not found.");
+    } catch (IOException e) {
+      logger.info("IOException - Property file " + propFileName + " not found.");
+    }
+    return props;
+  }
+
 }

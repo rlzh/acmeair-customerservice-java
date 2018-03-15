@@ -39,6 +39,6 @@ public class CustomerServiceApp extends Application {
   public Set<Class<?>> getClasses() {
     return new HashSet<Class<?>>(
         Arrays.asList(CustomerServiceRest.class, CustomerConfiguration.class, 
-            CustomerLoaderRest.class,HealthCheckRest.class));
+            CustomerLoaderRest.class));
   }
 }

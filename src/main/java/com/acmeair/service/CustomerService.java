@@ -31,8 +31,8 @@ public abstract class CustomerService {
   private static final JsonReaderFactory factory = Json.createReaderFactory(null);
 
   @Inject
-  protected KeyGenerator keyGenerator; 
- 
+  protected KeyGenerator keyGenerator;
+
   public abstract void createCustomer(String username, String password, String status, 
       int totalMiles, int milesYtd, String phoneNumber, String phoneNumberType, 
       String addressJson);
@@ -88,6 +88,4 @@ public abstract class CustomerService {
 
   public abstract String getServiceType();
 
-  public abstract boolean isPopulated();
-  
 }
