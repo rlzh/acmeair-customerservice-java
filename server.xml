@@ -12,7 +12,7 @@
                   httpsPort="9443" >
 	</httpEndpoint>
 
-    <webApplication name="customerservice"
-        location="customerservice-java-2.0.0-SNAPSHOT.war"
+    <webApplication name="acmeair-customerservice"
+        location="acmeair-customerservice-java-2.0.0-SNAPSHOT.war"
         contextRoot="/" />    <webContainer deferServletLoad="false"/>
 </server>

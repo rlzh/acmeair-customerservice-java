@@ -2,6 +2,6 @@ FROM websphere-liberty:microProfile
 RUN installUtility install  --acceptLicense defaultServer
 COPY server.xml /config/server.xml
 COPY jvm.options /config/jvm.options
-COPY target/customerservice-java-2.0.0-SNAPSHOT.war /config/apps/
+COPY target/acmeair-customerservice-java-2.0.0-SNAPSHOT.war /config/apps/
 
-ENV MONGO_HOST=customer-db
+ENV MONGO_HOST=acmeair-customer-db
