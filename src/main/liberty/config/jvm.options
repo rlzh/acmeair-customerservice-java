@@ -1,3 +1,4 @@
 -Xmx256m
+-Dcom.sun.management.jmxremote
 -Dhttp.keepalive=true
 -Dhttp.maxConnections=100
