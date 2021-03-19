@@ -126,4 +126,4 @@ spec:
           - name: acmeair-customer-db-2
             mountPath: /data/db
       restartPolicy: Always
-      status: {}
+status: {}
